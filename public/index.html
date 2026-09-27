@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Journal & Analytics Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>TRADING <span>JOURNAL</span></h2>
+            </div>
+            <nav class="menu">
+                <button class="nav-btn active" onclick="switchTab('calendar-tab')">📅 Naptár & Napló</button>
+                <button class="nav-btn" onclick="switchTab('playbook-tab')">📜 Rendszerek & Playbook</button>
+                <button class="nav-btn" onclick="switchTab('calculator-tab')">🧮 Kockázat Kalkulátor</button>
+                <button class="nav-btn" onclick="switchTab('analytics-tab')">📊 Kimutatások</button>
+                <button class="nav-btn" onclick="switchTab('backtest-tab')">🧪 Backtest Modul</button>
+            </nav>
+            <div class="drawdown-status">
+                <h4>Drawdown Status</h4>
+                <p>Napi status: <span id="daily-dd-badge" class="badge green">OK</span></p>
+                <p>Havi DD (-5% Limit): <span id="monthly-dd-val">0.00%</span></p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- NAPTÁR FÜL -->
+            <section id="calendar-tab" class="tab-content active">
+                <div class="header-actions">
+                    <button onclick="changeMonth(-1)">◀ Előző</button>
+                    <h2 id="current-month-display">2026. Szeptember</h2>
+                    <button onclick="changeMonth(1)">Következő ▶</button>
+                </div>
+                <div id="calendar-grid" class="calendar-grid"></div>
+            </section>
+
+            <!-- PLAYBOOK FÜL -->
+            <section id="playbook-tab" class="tab-content">
+                <h2>Stratégia & Szabályrendszer</h2>
+                <div class="playbook-container">
+                    <div class="card">
+                        <h3>HTF / LTF Pre-Trade Checklist</h3>
+                        <ul class="checklist">
+                            <li><input type="checkbox"> Bejelöljük HTF-en a liquidity szinteket (Daily)</li>
+                            <li><input type="checkbox"> Bejelöljük HTF-en a liquidity szinteket (4h)</li>
+                            <li><input type="checkbox"> Bejelöljük HTF-en a liquidity szinteket (1h)</li>
+                            <li><input type="checkbox"> Megállapítjuk a trendet 1h-n (Bullish / Bearish)</li>
+                            <li><input type="checkbox"> Mit szedett ki / Mit akar kiszedni? (DoL / Sessions)</li>
+                            <li><input type="checkbox"> Milyen setup-ban vagyunk? (1 / 2 / 3 / 4 / 5)</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Szigorú Szabályzat (Hard Rules)</h3>
+                        <ul>
+                            <li><strong>Max 1 Trade / Nap:</strong> Ha megvan, gép kikapcsolva.</li>
+                            <li><strong>Hírmentes zónák:</strong> Hírek előtt/után 15 perccel TILOS a kötés.</li>
+                            <li><strong>Drawdown limit:</strong> Havi -5%-nál azonnali leállás.</li>
+                            <li><strong>04:00 Gyertya szűrés:</strong> Megfelelő Sweep / Displacement megléte.</li>
+                        </ul>
+                    </div>
+                </div>
+                <h3>Setup Mátrix (1-5. Setupok)</h3>
+                <div class="setup-grid">
+                    <div class="setup-card"><h4>1. Sima Continuation</h4><p>Bias az megegyező. 1H sweep, majd iFVG és entry. 5m/1m sweep-való.</p></div>
+                    <div class="setup-card"><h4>2. Retracement Continuation</h4><p>Bias az megegyező. HTF-en 0.5 Fib-ig, liquidity-ig vagy FVG-ig sweep.</p></div>
+                    <div class="setup-card"><h4>3. Deep Retracement</h4><p>Bias az megegyező, HTF-en ellentétes external-ig sweep, iFVG és entry.</p></div>
+                    <div class="setup-card"><h4>4. Sima Fordulás</h4><p>Bias az ellentétes, HTF-en ellenkező external sweep, LTF 1m sweep + iFVG.</p></div>
+                    <div class="setup-card"><h4>5. Sweep Fordulás</h4><p>Bias az ellentétes, HTF-en azonos external sweep-el, majd LTF iFVG és entry.</p></div>
+                </div>
+            </section>
+
+            <!-- KALKULÁTOR FÜL -->
+            <section id="calculator-tab" class="tab-content">
+                <h2>Kockázat & Lot Kalkulátor</h2>
+                <div class="calculator-box card">
+                    <div class="form-group">
+                        <label>Tőke (€):</label>
+                        <input type="number" id="calc-account" value="10000" oninput="calculateLot()">
+                    </div>
+                    <div class="form-group">
+                        <label>Kockázat (%):</label>
+                        <input type="number" id="calc-risk-percent" value="1" step="0.1" oninput="calculateLot()">
+                    </div>
+                    <div class="form-group">
+                        <label>Stop Loss (Pont / Pip):</label>
+                        <input type="number" id="calc-sl-points" value="15" oninput="calculateLot()">
+                    </div>
+                    <div class="calc-results">
+                        <p>Kockáztatott összeg: <strong id="calc-risk-eur">100.00 €</strong></p>
+                        <p>Számított Lot Méret: <strong id="calc-lot-output">0.67 Lot</strong></p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- KIMUTATÁSOK FÜL -->
+            <section id="analytics-tab" class="tab-content">
+                <h2>Performance Analytics</h2>
+                <div class="stats-cards">
+                    <div class="card"><p>Equity / Balance</p><h3 id="stat-balance">10 000.00 €</h3></div>
+                    <div class="card"><p>Win Rate</p><h3 id="stat-winrate">0.00%</h3></div>
+                    <div class="card"><p>Average Profit</p><h3 id="stat-avg-profit" style="color: #22c55e;">+0.00 €</h3></div>
+                    <div class="card"><p>Average Loss</p><h3 id="stat-avg-loss" style="color: #ef4444;">-0.00 €</h3></div>
+                    <div class="card"><p>Number of Trades</p><h3 id="stat-num-trades">0</h3></div>
+                    <div class="card"><p>Profit Factor</p><h3 id="stat-profit-factor">0.00</h3></div>
+                    <div class="card"><p>Expectancy</p><h3 id="stat-expectancy">0.00 €</h3></div>
+                    <div class="card"><p>Összes Lot</p><h3 id="stat-total-lots">0.00</h3></div>
+                    <div class="card"><p>Összes R</p><h3 id="stat-total-r">0 R</h3></div>
+                </div>
+                <div class="charts-container">
+                    <div class="card"><canvas id="equityChart"></canvas></div>
+                </div>
+            </section>
+
+            <!-- BACKTEST FÜL -->
+            <section id="backtest-tab" class="tab-content">
+                <h2>Backtest Modul</h2>
+                <form id="backtest-form" class="card inline-form" onsubmit="saveBacktest(event)">
+                    <input type="number" id="bt-year" placeholder="Év (pl. 2026)" required>
+                    <input type="number" id="bt-week" placeholder="Hét (1-52)" required>
+                    <input type="text" id="bt-pair" placeholder="Pár (pl. EURUSD)" required>
+                    <input type="number" id="bt-r" step="0.1" placeholder="Eredmény (R)" required>
+                    <select id="bt-win"><option value="true">WIN</option><option value="false">LOSS</option></select>
+                    <button type="submit">Mentés</button>
+                </form>
+                <div class="card">
+                    <table class="data-table">
+                        <thead><tr><th>Év</th><th>Hét</th><th>Pár</th><th>Eredmény (R)</th><th>Kimenetel</th></tr></thead>
+                        <tbody id="backtest-list"></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- TRADE ENTRY MODAL -->
+    <div id="trade-modal" class="modal">
+        <div class="modal-content card">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h3 id="modal-date-title">Trade Rögzítése</h3>
+            <form id="trade-form" onsubmit="saveTrade(event)">
+                <input type="hidden" id="modal-date">
+                <div class="form-group checkbox-group">
+                    <label><input type="checkbox" id="is-no-trade" onchange="toggleNoTrade(this)"> No Trade Day (Nem volt kötés)</label>
+                </div>
+                <div id="trade-fields">
+                    <div class="form-group"><label>Pár:</label><input type="text" id="trade-pair" placeholder="EURUSD / GER40"></div>
+                    <div class="form-group"><label>Lot:</label><input type="number" id="trade-lot" step="0.01"></div>
+                    <div class="form-group"><label>SL Pontok:</label><input type="number" id="trade-sl"></div>
+                    <div class="form-group"><label>Eredmény (R):</label><input type="number" id="trade-r" step="0.1"></div>
+                    <div class="form-group"><label>Profit (€):</label><input type="number" id="trade-profit" step="0.01"></div>
+                    <div class="form-group">
+                        <label>Setup Típus:</label>
+                        <select id="trade-setup">
+                            <option value="1. Sima Continuation">1. Sima Continuation</option>
+                            <option value="2. Retracement Continuation">2. Retracement Continuation</option>
+                            <option value="3. Deep Retracement">3. Deep Retracement</option>
+                            <option value="4. Sima Fordulás">4. Sima Fordulás</option>
+                            <option value="5. Sweep Fordulás">5. Sweep Fordulás</option>
+                        </select>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label><input type="checkbox" id="trade-rule" checked> Szabálykövetés volt</label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label><input type="checkbox" id="trade-news"> Volatilis hír volt aznap</label>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label><input type="checkbox" id="trade-news-violation"> Hír szabályszegés (15 perces ablakban kötöttél)</label>
+                    </div>
+                    <div class="form-group">
+                        <label>Képernyőkép (TradingView screenshot):</label>
+                        <input type="file" id="trade-image" accept="image/*">
+                    </div>
+                    <div class="form-group"><label>Jegyzetek / Pszichológia:</label><textarea id="trade-note"></textarea></div>
+                </div>
+                <button type="submit" class="btn-submit">Mentés Supabase-be</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
